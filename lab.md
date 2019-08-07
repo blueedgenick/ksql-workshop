@@ -13,6 +13,8 @@ where `<username>` is your first initial plus last name. You will be prompted fo
 open up a browser window and navigate to `http://controlcenter-<username>.selabs.net:9021`
 the login credentials for the web-page are `admin/Developer1`
 
+Keep a copy of the KSQL syntax guide open in another browser tab: [https://docs.confluent.io/current/ksql/docs/developer-guide/syntax-reference.html]
+
 ### In the beginning, there was the CLI
 We will mostly be using the KSQL CLI tool to interact with the KSQL Server. If you've used a tool like MySQL before this should be very familiar.
 Let's fire it up!
@@ -50,20 +52,20 @@ create stream ratings with (kafka_topic='ratings', value_format='avro');`
   * try `describe extended ratings;`
 
 3. Defining a lookup table for Customer data is a multi-step process from our CDC data-feed:
-  * 
   ```
   create stream customers_cdc with(kafka_topic='rds.<username>.CUSTOMERS-raw', value_format='AVRO');
   ```
   * quickly query a couple of records to check it. Practice the art of "struct-dereferencing" with the "`->`" operator.
   
   * We want to extract just the changed record values from the CDC structures, re-partition on the ID column, and set the target topic to have the same number of partitings as the source `ratings` topic:
-```
-create stream customers_flat with (partitions=1) as select after->id as id, after->first_name as first_name, after->last_name as last_name, after->email as email, after->club_status as club_status, after->comments as comments from customers_cdc partition by id;
-```
-Register the CUSTOMER data as a KSQL table, sourced from the re-partitioned topic
-```
-create table customers with (kafka_topic='CUSTOMERS_FLAT', value_format='AVRO');
-```
+  ```
+  create stream customers_flat with (partitions=1) as select after->id as id, after->first_name as first_name, after->last_name as last_name, after->email as email, after->club_status as club_status, after->comments as comments from customers_cdc partition by id;
+  ```
+  * Register the CUSTOMER data as a KSQL table, sourced from the re-partitioned topic
+  ```
+  create table customers with (kafka_topic='CUSTOMERS_FLAT', value_format='AVRO');
+  ```
+  
 now query from this new stream. what happens ? and why ?
 we'll come back and fix this in a second...
 (
@@ -71,6 +73,7 @@ we'll come back and fix this in a second...
 set 'auto.offset.reset' = 'earliest';
 ```
 )
+
 ### Changing data in MySQL
 In a new terminal window, launch the MySQL client
 ```bash
@@ -81,7 +84,7 @@ Try inserting a new record or updating an existing one
 > Example: update name of a record to be your own name
 > `update CUSTOMERS set first_name = 'janet', last_name='smith' where id = 1;`
 
-*TIP* if you leave your KSQL `select...from customers;` query running in the first window, watch what happens as you change data in the MySQL source
+**TIP** if you leave your KSQL `select...from customers;` query running in the first window, watch what happens as you change data in the MySQL source
 
 
 ## Identify the unhappy customers
