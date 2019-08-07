@@ -130,11 +130,13 @@ Note that we could have combined this filter clause into the previous query, eli
 
 Time permitting, let's explore the following ideas:
 * aggregation - what if we just wanted to find the _really_ unhappy customers, who post multiple negative ratings in a short space of time ?
+* explore and describe the available functions
 * create a new stream over a topic that doesn't exist yet
 * use `insert...values` to write a couple of test records into this new topic
 * join it to one of our existing streams or tables
 
 ## Discussion Points
+1. UDFs
 1. Testing tools
 
 
