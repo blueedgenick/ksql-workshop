@@ -129,6 +129,7 @@ Note that we could have combined this filter clause into the previous query, eli
 ## Extra Credit
 
 Time permitting, let's explore the following ideas:
+* mask the actual user names in the ouput
 * aggregation - what if we just wanted to find the _really_ unhappy customers, who post multiple negative ratings in a short space of time ?
 * explore and describe the available functions
 * create a new stream over a topic that doesn't exist yet
