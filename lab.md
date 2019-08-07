@@ -103,7 +103,7 @@ create stream poor_ratings as select * from ratings where stars < 3 and channel 
 ```
 create stream poor_ratings_with_users as 
 select r.user_id, c.first_name, c.last_name, c.club_status, r.stars, r.channel, r.route_id
-from ratings r
+from poor_ratings r
 left join customers c
 on r.user_id = c.rowkey
 where c.first_name is not null;
