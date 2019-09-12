@@ -1,0 +1,282 @@
+= Workshop: Real-time Stream Processing with KSQL
+:doctype: book
+:toc:
+:sectnums:
+Confluent ATG
+
+:toc:
+
+== Introduction
+
+KSQL is the streaming SQL engine for Apache Kafka. This workshop will step through some practical examples of how to
+use KSQL to build powerful stream-processing applications:
+
+* Filtering streams of data
+* Joining live streams of events with reference data (e.g. from a database)
+* Continuous, stateful aggregations
+
+== Pre-reqs / testing the setup
+First things first, let's get connected to the lab environment and make sure we have access to everything we need.
+In the following commands, be sure to replace `<username>` with *your own first initial plus last name*. 
+
+=== Open up a terminal session to the gateway server
+(for MacOS / Linux users)
+[source,bash]
+----
+ssh <username>@ec2-54-184-72-77.us-west-2.compute.amazonaws.com
+----
+(for Windows users)
+----
+putty <username>@ec2-54-184-72-77.us-west-2.compute.amazonaws.com
+----
+You will be prompted for a password, which is `ksqlr0ck$`
+
+=== Control Center
+Test that you can open the Control Center web page by opening up a browser window and navigating to
+`http://controlcenter-<username>.selabs.net:9021`. 
+
+The login credentials for the Control Center are `admin/Developer1`
+
+=== Syntax Reference
+You will find it helpful to keep a copy of the KSQL syntax guide open in another browser tab: 
+`https://docs.confluent.io/current/ksql/docs/developer-guide/syntax-reference.html`
+
+== KSQL
+
+KSQL can be accessed via the command line interface (CLI), a graphical UI built into Confluent Control Center, or the documented https://docs.confluent.io/current/ksql/docs/api.html[REST API].
+
+In this workshop we will be using the CLI. If you have used tools for MySQL, Postgres or Oracle's sql*plus before this should feel very familiar.
+Let's switch back to our terminal session and fire it up!
+
+[source,bash]
+----
+ksql
+----
+This will connect to your personal KSQL Server for the lab. You can open as any many of these, in separate terminal sessions, as you need.
+
+Make sure that you get a successful splash screen and admire the ASCII-art :-)
+
+[source,bash]
+----
+                  ===========================================
+                  =        _  __ _____  ____  _             =
+                  =       | |/ // ____|/ __ \| |            =
+                  =       | ' /| (___ | |  | | |            =
+                  =       |  <  \___ \| |  | | |            =
+                  =       | . \ ____) | |__| | |____        =
+                  =       |_|\_\_____/ \___\_\______|       =
+                  =                                         =
+                  =  Streaming SQL Engine for Apache Kafka® =
+                  ===========================================
+
+Copyright 2017-2019 Confluent Inc.
+
+CLI v5.3.1, Server v5.3.0 located at http://ksql-server:8088
+[....]
+----
+
+=== Looking around
+Let's quickly get familiar with this environment by taking a look around:
+
+TIP
+
+You can navigate your KSQL command history much like a BASH shell:
+  * type `history` to see a list of previous commands
+  * `!123` will retrieve a previous command
+  * `ctrl-r` invokes a 'backward search' for commands matching whatever you type next, use arrow keys to navigate matches
+
+==== See available Kafka topics and data
+
+KSQL can be used to view the topic metadata on a Kafka cluster - try `show topics;` and `show streams`.
+* `show topics;`
+* `show streams;`
+
+We can also investigate some data:
+* `print 'xxxx' limit 3` or `print 'xxxx' from beginning limit 3;`
+
+The topics we will use today are *`ratings`* and *`rds.<username>.CUSTOMERS-raw`*
+
+The event stream driving this example is a simulated stream of events representing the ratings left by users
+on a mobile app or website, with fields including the device type that they used, the star rating (a score from 1 to 5), 
+and a an optional comment associated with the rating.
+
+Notice that we don't need to know the format of the data; KSQL introspects the data and understands how to deserialise it.
+
+[TIP]
+====
+Because kafka topic names are case-sensitive ("Ratings" and "ratings" are two different topics on a Kafka broker) we 
+take care to single-quote the topic names and correctly case them whenever we have to reference them. All the KSQL constructs 
+though, like Streams and Tables and everything else, are case-insensitive as yo uwould expect from a database-like system.
+====
+
+[source,sql]
+----
+ksql> PRINT 'ratings';
+Format:AVRO
+9/12/19 12:55:04 GMT, 5312, {"rating_id": 5312, "user_id": 4, "stars": 4, "route_id": 2440, "rating_time": 1519304104965, "channel": "web", "message": "Surprisingly good, maybe you are getting your mojo back at long last!"}
+9/12/19 12:55:05 GMT, 5313, {"rating_id": 5313, "user_id": 3, "stars": 4, "route_id": 6975, "rating_time": 1519304105213, "channel": "web", "message": "why is it so difficult to keep the bathrooms clean ?"}
+----
+
+Press Ctrl-C to cancel and return to the KSQL prompt. 
+
+
+==== Session properties
+Investigate session properties with `show properties;`
+
+
+== Getting started with DDL
+To make use of these topics in KSQL we need to define some Streams and/or Tables over them
+
+==== Create the Ratings data stream
+Register the RATINGS data as a KSQL stream, sourced from the 'ratings' topic
+[source,sql]
+----
+create stream ratings with (kafka_topic='ratings', value_format='avro');`
+----
+Notice that here we are using the Schema Registry with our Avro-formatted data to pull in the schema of this stream automatically.
+If our data were in some other format, such as JSON or CSV messages, then we would also need to specify each column and it's datatype in the create statement.
+
+Check your creation with `describe ratings;` and a couple of `select` queries. 
+
+What happens ? Why ?
+
+Try `describe extended ratings;`
+
+==== Bring in Customer lookup data from MySQL
+
+Defining a lookup table for Customer data is a multi-step process from our CDC data-feed:
+[source,sql]
+----
+create stream customers_cdc with(kafka_topic='rds.<username>.CUSTOMERS-raw', value_format='AVRO');
+----
+Quickly query a couple of records to check it. Practice the art of "struct-dereferencing" with the "`->`" operator.
+[source,sql]
+----
+select after->id as id, after->first_name as first_name, after->last_name as last_name from customers_cdc;
+----
+  
+Now query from this new stream. what happens ? and why ?
+
+(side discussion: when to use `set 'auto.offset.reset' = 'earliest';`)
+
+If we aren't pushing new records into this stream (technically into it's backing topic) by changing data in MySQL
+then we won't see any query output. At this point you might want to skip ahead a couple of paragraphs to the 'Changing Data in MySQL' section so you can see 
+some output from this `customers_cdc` stream query, and then come back here to continue.
+  
+We want to extract just the changed record values from the CDC structures, re-partition on the ID column, and set the target topic to have the same number of partitions as the source `ratings` topic:
+[source,sql]
+----
+create stream customers_flat with (partitions=1) as select after->id as id, after->first_name as first_name, after->last_name as last_name, after->email as email, after->club_status as club_status, after->comments as comments from customers_cdc partition by id;
+----
+Register the CUSTOMER data as a KSQL table, sourced from the re-partitioned topic
+[source,sql]
+----
+create table customers with (kafka_topic='CUSTOMERS_FLAT', value_format='AVRO');
+----
+  
+We can check our output with
+[source,sql]
+----
+describe extended customers;
+----
+check the "total messages" value and see how it changes over time if you re-issue the same instruction after making some changes in MySQL.
+  
+
+==== Changing data in MySQL
+In a new terminal window, launch the MySQL client
+[source,bash]
+----
+mysql
+----
+You should be able to see your source CUSTOMERS table here, and inspect it's records with `select * from CUSTOMERS` (note the table name is case-sensitive!)
+Try inserting a new record or updating an existing one
+Example: update name of a record to be your own name
+[source,sql]
+----
+> update CUSTOMERS set first_name = 'janet', last_name='smith' where id = 1;
+----
+
+[TIP]
+====
+if you leave your KSQL `select...from customers;` query running in the first window, watch what happens as you change data in the MySQL source
+====
+
+=== Identify the unhappy customers
+
+1.Back in KSQL, we start by finding just the low-scoring ratings
+[source,sql]
+----
+select * from ratings where stars < 3 and channel like 'iOS%' limit 5;
+----
+(play around with the `where` clause conditions to experiment)
+
+Now convert this test query into a persistent one:
+[source,sql]
+----
+create stream poor_ratings as select * from ratings where stars < 3 and channel like 'iOS%';
+----
+
+2. Which of these low-score ratings was posted by an elite customer ? To answer this we need to join our customers table:
+[source,sql]
+----
+create stream poor_ratings_with_users as 
+select r.user_id, c.first_name, c.last_name, c.club_status, r.stars, r.channel, r.route_id
+from poor_ratings r
+left join customers c
+on r.user_id = c.rowkey
+where c.first_name is not null;
+----
+
+==== ASIDE - so what's actually happening here ?
+[source,sql]
+----
+show queries;
+explain <query_id>;  (case sensitive!)
+----
+
+Over in the Control Center browser window, check out the consumer group for this join query, what do we see ? why ?
+
+
+3. And we can then select from this new stream with a filter (where clause condition) on the `club_status` column:
+[source,sql]
+----
+create stream vip_poor_ratings as select * from poor_ratings_with_users where lcase(club_status) = 'platinum';
+----
+Note that we could have combined this filter clause into the previous query, eliminating the need for an extra step here.
+
+
+
+
+  
+== Extra Credit
+
+Time permitting, let's explore the following ideas:
+
+  * mask the actual user names in the ouput
+  * aggregation - what if we just wanted to find the _really_ unhappy customers, who post multiple negative ratings in a short space of time ?
+  * explore and describe the available functions
+  * create a new stream over a topic that doesn't exist yet
+  * use `insert...values` to write a couple of test records into this new topic
+  * join it to one of our existing streams or tables
+
+== Follow-on Discussion Points
+1. UDFs
+1. Testing tools
+
+== Further resources
+Don't forget to check out the #ksql channel on our https://slackpass.io/confluentcommunity[Community Slack group]
+
+
+
+
+
+
+
+From the MySQL command prompt, make some changes to the data: 
+
+[source,sql]
+----
+INSERT INTO CUSTOMERS (ID,FIRST_NAME,LAST_NAME) VALUES (42,'Rick','Astley');
+UPDATE CUSTOMERS SET FIRST_NAME = 'Thomas', LAST_NAME ='Smith' WHERE ID=2;
+----
+
