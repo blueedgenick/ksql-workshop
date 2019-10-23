@@ -164,18 +164,23 @@ select after->id as id, after->first_name as first_name, after->last_name as las
   
 What happens when you query from this new stream ? Why is that the case ?
 
-[INFO] (side discussion: when to use `set 'auto.offset.reset' = 'earliest';`)
-
+[TIP]
+====
 If we aren't pushing new records into this stream (technically into it's backing topic) by changing data in MySQL
 then we won't see any query output. At this point you might want to skip ahead a couple of paragraphs to the 'Changing Data in MySQL' section so you can see 
 some output from this `customers_cdc` stream query, and then come back here to continue.
-  
+====
+
+[NOTE] (side discussion: when to use `set 'auto.offset.reset' = 'earliest';`)
+
+==== Re-format the CDC data
+
 We want to extract just the changed record values from the CDC structures, re-partition on the ID column, and set the target topic to have the same number of partitions as the source `ratings` topic:
 [source,sql]
 ----
 create stream customers_flat with (partitions=1) as select after->id as id, after->first_name as first_name, after->last_name as last_name, after->email as email, after->club_status as club_status, after->comments as comments from customers_cdc partition by id;
 ----
-Register the CUSTOMER data as a KSQL table, sourced from the re-partitioned topic
+Register the CUSTOMER data as a KSQL table, sourced from this new, re-partitioned, topic
 [source,sql]
 ----
 create table customers with (kafka_topic='CUSTOMERS_FLAT', value_format='AVRO');
