@@ -23,11 +23,11 @@ In the following commands, be sure to replace `<username>` with *your own first 
 (for MacOS / Linux users)
 [source,bash]
 ----
-ssh <username>@ec2-54-184-72-77.us-west-2.compute.amazonaws.com
+ssh <username>@ec2-52-40-161-72.us-west-2.compute.amazonaws.com
 ----
 (for Windows users)
 ----
-putty <username>@ec2-54-184-72-77.us-west-2.compute.amazonaws.com
+putty <username>@ec2-52-40-161-72.us-west-2.compute.amazonaws.com
 ----
 You will be prompted for a password, which is `ksqlr0ck$`
 
@@ -43,7 +43,7 @@ You will find it helpful to keep a copy of the KSQL syntax guide open in another
 
 == KSQL
 
-KSQL can be accessed via the command line interface (CLI), a graphical UI built into Confluent Control Center, or the documented https://docs.confluent.io/current/ksql/docs/api.html[REST API].
+KSQL can be accessed via either the command line interface (CLI), a graphical UI built into Confluent Control Center, or the documented https://docs.confluent.io/current/ksql/docs/api.html[REST API].
 
 In this workshop we will be using the CLI. If you have used tools for MySQL, Postgres or Oracle's sql*plus before this should feel very familiar.
 Let's switch back to our terminal session and fire it up!
@@ -78,21 +78,26 @@ CLI v5.3.1, Server v5.3.0 located at http://ksql-server:8088
 === Looking around
 Let's quickly get familiar with this environment by taking a look around:
 
-TIP
-
+[TIP]
+====
 You can navigate your KSQL command history much like a BASH shell:
+
   * type `history` to see a list of previous commands
   * `!123` will retrieve a previous command
   * `ctrl-r` invokes a 'backward search' for commands matching whatever you type next, use arrow keys to navigate matches
+====
 
-==== See available Kafka topics and data
+=== See available Kafka topics and data
 
-KSQL can be used to view the topic metadata on a Kafka cluster - try `show topics;` and `show streams`.
+KSQL can be used to view the topic metadata on a Kafka cluster - try `show topics;` and `show streams`:
+
 * `show topics;`
 * `show streams;`
 
 We can also investigate some data:
-* `print 'xxxx' limit 3` or `print 'xxxx' from beginning limit 3;`
+
+* `print 'xxxx' limit 3` or 
+* `print 'xxxx' from beginning limit 3;`
 
 The topics we will use today are *`ratings`* and *`rds.<username>.CUSTOMERS-raw`*
 
@@ -100,13 +105,13 @@ The event stream driving this example is a simulated stream of events representi
 on a mobile app or website, with fields including the device type that they used, the star rating (a score from 1 to 5), 
 and a an optional comment associated with the rating.
 
-Notice that we don't need to know the format of the data; KSQL introspects the data and understands how to deserialise it.
+Notice that we don't need to know the format of the data when `print`ing a topic; KSQL introspects the data and understands how to deserialize it.
 
 [TIP]
 ====
 Because kafka topic names are case-sensitive ("Ratings" and "ratings" are two different topics on a Kafka broker) we 
 take care to single-quote the topic names and correctly case them whenever we have to reference them. All the KSQL constructs 
-though, like Streams and Tables and everything else, are case-insensitive as yo uwould expect from a database-like system.
+though, like Streams and Tables and everything else, are case-insensitive as you would expect from a database-like system.
 ====
 
 [source,sql]
@@ -121,11 +126,11 @@ Press Ctrl-C to cancel and return to the KSQL prompt.
 
 
 ==== Session properties
-Investigate session properties with `show properties;`
+Investigate session properties with `show properties;`. Although we won't be adjusting these today, the session properties mechanism is how you can temporarily adjust various performance settings for any subsequent queries you issue.
 
 
 == Getting started with DDL
-To make use of these topics in KSQL we need to define some Streams and/or Tables over them
+To make use of our ratings and customers topics in KSQL we first need to define some Streams and/or Tables over them.
 
 ==== Create the Ratings data stream
 Register the RATINGS data as a KSQL stream, sourced from the 'ratings' topic
@@ -134,7 +139,7 @@ Register the RATINGS data as a KSQL stream, sourced from the 'ratings' topic
 create stream ratings with (kafka_topic='ratings', value_format='avro');`
 ----
 Notice that here we are using the Schema Registry with our Avro-formatted data to pull in the schema of this stream automatically.
-If our data were in some other format, such as JSON or CSV messages, then we would also need to specify each column and it's datatype in the create statement.
+If our data were in some other format, such as JSON or CSV messages, then we would also need to specify each column and it's datatype in the `create` statement.
 
 Check your creation with `describe ratings;` and a couple of `select` queries. 
 
@@ -142,22 +147,24 @@ What happens ? Why ?
 
 Try `describe extended ratings;`
 
-==== Bring in Customer lookup data from MySQL
+=== Bring in Customer lookup data from MySQL
 
-Defining a lookup table for Customer data is a multi-step process from our CDC data-feed:
+Defining a lookup table for Customer data from our MySQL CDC data-feed is a multi-step process:
 [source,sql]
 ----
 create stream customers_cdc with(kafka_topic='rds.<username>.CUSTOMERS-raw', value_format='AVRO');
 ----
-Quickly query a couple of records to check it. Practice the art of "struct-dereferencing" with the "`->`" operator.
+Quickly query a couple of records to check it (remember you can `describe` the stream to see the column names!). 
+
+Practice the art of "struct-dereferencing" with the "`->`" operator.
 [source,sql]
 ----
 select after->id as id, after->first_name as first_name, after->last_name as last_name from customers_cdc;
 ----
   
-Now query from this new stream. what happens ? and why ?
+What happens when you query from this new stream ? Why is that the case ?
 
-(side discussion: when to use `set 'auto.offset.reset' = 'earliest';`)
+[INFO] (side discussion: when to use `set 'auto.offset.reset' = 'earliest';`)
 
 If we aren't pushing new records into this stream (technically into it's backing topic) by changing data in MySQL
 then we won't see any query output. At this point you might want to skip ahead a couple of paragraphs to the 'Changing Data in MySQL' section so you can see 
