@@ -249,6 +249,11 @@ on r.user_id = c.rowkey
 where lcase(c.club_status) = 'platinum';
 ----
 
+* What do you think would happen if you went and changed the `club_status` of a customer while this join query is running ?
+
+
+=== Monitoring our Queries
+
 [INFO]
 ====
 - so what's actually happening here ?
@@ -258,8 +263,6 @@ show queries;
 explain <query_id>;  (case sensitive!)
 ----
 ====
-
-=== Monitoring our Queries
 
 Over in the Control Center browser window, navigate to 'Consumers' and, in the table of consumer groups, try to find the one for our join query and click on it (TIP: all the names are prefixed with '_confluent_ksql_' plus the ID of the query, as shown in the output of `explain queries`).
 
@@ -273,8 +276,19 @@ It's also possible (although not setup in this lab environment) to monitor a ser
 
 Time permitting, let's explore the following ideas:
 
+  * which customers are so upset that they post multiple bad ratings in quick succession ? Perhaps we want to route those complaints direct to our Customer Care team to do some outreach...
+
+[source,sql]
+----
+select first_name, last_name, count(*) as rating_count
+from vip_poor_ratings
+window tumbling (size 5 minutes)
+group by first_name, last_name
+having count(*) > 1;
+----
+  
   * mask the actual user names in the ouput
-  * aggregation - what if we just wanted to find the _really_ unhappy customers, who post multiple negative ratings in a short space of time ?
+
   * explore and describe the available functions
   * create a new stream over a topic that doesn't exist yet
   * use `insert...values` to write a couple of test records into this new topic
