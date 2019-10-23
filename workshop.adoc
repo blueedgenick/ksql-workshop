@@ -202,7 +202,7 @@ check the "total messages" value and see how it changes over time if you re-issu
   
 
 ==== Changing data in MySQL
-In a new terminal window, launch the MySQL client
+In a new terminal window, side-by-side with the one you are using already, use `ssh` to connect to the server again (just like we did right at the beginning), and launch the MySQL client
 [source,bash]
 ----
 mysql
@@ -212,58 +212,60 @@ Try inserting a new record or updating an existing one
 Example: update name of a record to be your own name
 [source,sql]
 ----
-> update CUSTOMERS set first_name = 'janet', last_name='smith' where id = 1;
+> update CUSTOMERS set first_name = 'Jay', last_name='Kreps' where id = 1;
 ----
 
 [TIP]
 ====
-if you leave your KSQL `select...from customers;` query running in the first window, watch what happens as you change data in the MySQL source
+If you leave your KSQL `select...from customers;` query running in the first window, watch what happens as you change data in the MySQL source.
 ====
 
 === Identify the unhappy customers
 
-1.Back in KSQL, we start by finding just the low-scoring ratings
+Now that we have both our ratings and our continuously-updating customer data, we can join them together 
+ to find out details about the customers who are posting negative reviews, and see if any of them are our valued elite customers.
+ 
+* Back in KSQL, we start by finding just the low-scoring ratings
 [source,sql]
 ----
 select * from ratings where stars < 3 and channel like 'iOS%' limit 5;
 ----
 (play around with the `where` clause conditions to experiment)
 
-Now convert this test query into a persistent one:
+* Now convert this test query into a persistent one (a persistent query is one which starts with `create` and continuously writes its' output into a topic in Kafka:
 [source,sql]
 ----
 create stream poor_ratings as select * from ratings where stars < 3 and channel like 'iOS%';
 ----
 
-2. Which of these low-score ratings was posted by an elite customer ? To answer this we need to join our customers table:
+* Which of these low-score ratings was posted by an elite customer ? To answer this we need to join our customers table:
 [source,sql]
 ----
-create stream poor_ratings_with_users as 
-select r.user_id, c.first_name, c.last_name, c.club_status, r.stars, r.channel, r.route_id
+create stream vip_poor_ratings as 
+select r.user_id, c.first_name, c.last_name, c.club_status, r.stars
 from poor_ratings r
 left join customers c
 on r.user_id = c.rowkey
-where c.first_name is not null;
+where lcase(c.club_status) = 'platinum';
 ----
 
-==== ASIDE - so what's actually happening here ?
+[INFO]
+====
+- so what's actually happening here ?
 [source,sql]
 ----
 show queries;
 explain <query_id>;  (case sensitive!)
 ----
+====
 
-Over in the Control Center browser window, check out the consumer group for this join query, what do we see ? why ?
+=== Monitoring our Queries
 
+Over in the Control Center browser window, navigate to 'Consumers' and, in the table of consumer groups, try to find the one for our join query and click on it (TIP: all the names are prefixed with '_confluent_ksql_' plus the ID of the query, as shown in the output of `explain queries`).
 
-3. And we can then select from this new stream with a filter (where clause condition) on the `club_status` column:
-[source,sql]
-----
-create stream vip_poor_ratings as select * from poor_ratings_with_users where lcase(club_status) = 'platinum';
-----
-Note that we could have combined this filter clause into the previous query, eliminating the need for an extra step here.
+What do we see ? 
 
-
+It's also possible (although not setup in this lab environment) to monitor a series of JMX metrics for each running query.
 
 
   
@@ -279,23 +281,12 @@ Time permitting, let's explore the following ideas:
   * join it to one of our existing streams or tables
 
 == Follow-on Discussion Points
-1. UDFs
-1. Testing tools
+
+* UDFs
+* Testing tools
 
 == Further resources
+
 Don't forget to check out the #ksql channel on our https://slackpass.io/confluentcommunity[Community Slack group]
 
-
-
-
-
-
-
-From the MySQL command prompt, make some changes to the data: 
-
-[source,sql]
-----
-INSERT INTO CUSTOMERS (ID,FIRST_NAME,LAST_NAME) VALUES (42,'Rick','Astley');
-UPDATE CUSTOMERS SET FIRST_NAME = 'Thomas', LAST_NAME ='Smith' WHERE ID=2;
-----
 
