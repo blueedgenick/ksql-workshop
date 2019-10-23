@@ -159,7 +159,7 @@ Quickly query a couple of records to check it (remember you can `describe` the s
 Practice the art of "struct-dereferencing" with the "`->`" operator.
 [source,sql]
 ----
-select after->id as id, after->first_name as first_name, after->last_name as last_name from customers_cdc;
+select after->first_name as first_name, after->last_name as last_name from customers_cdc;
 ----
   
 What happens when you query from this new stream ? Why is that the case ?
@@ -178,7 +178,14 @@ some output from this `customers_cdc` stream query, and then come back here to c
 We want to extract just the changed record values from the CDC structures, re-partition on the ID column, and set the target topic to have the same number of partitions as the source `ratings` topic:
 [source,sql]
 ----
-create stream customers_flat with (partitions=1) as select after->id as id, after->first_name as first_name, after->last_name as last_name, after->email as email, after->club_status as club_status, after->comments as comments from customers_cdc partition by id;
+create stream customers_flat with (partitions=1) as select 
+after->id as id, 
+after->first_name as first_name, 
+after->last_name as last_name, 
+after->email as email, 
+after->club_status as club_status, 
+after->comments as comments 
+from customers_cdc partition by id;
 ----
 Register the CUSTOMER data as a KSQL table, sourced from this new, re-partitioned, topic
 [source,sql]
