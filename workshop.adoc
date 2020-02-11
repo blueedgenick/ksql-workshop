@@ -167,15 +167,33 @@ What happens when you query from this new stream ? Why is that the case ?
 [TIP]
 ====
 If we aren't pushing new records into this stream (technically into it's backing topic) by changing data in MySQL
-then we won't see any query output. At this point you might want to skip ahead a couple of paragraphs to the 'Changing Data in MySQL' section so you can see 
-some output from this `customers_cdc` stream query, and then come back here to continue.
+then we won't see any query output. 
 ====
 
 [NOTE] (side discussion: when to use `set 'auto.offset.reset' = 'earliest';`)
 
+==== Changing data in MySQL
+In a new terminal window, side-by-side with the one you are using already, use `ssh` to connect to the server again (just like we did right at the beginning), and launch the MySQL client
+[source,bash]
+----
+mysql
+----
+You should be able to see your source CUSTOMERS table here, and inspect it's records with `select * from CUSTOMERS` (note the table name here is case-sensitive because of how MySQL is configured in this environment!)
+Try inserting a new record or updating an existing one
+Example: update name of a record to be your own name
+[source,sql]
+----
+> update CUSTOMERS set first_name = 'Jay', last_name='Kreps' where id = 1;
+----
+
+[TIP]
+====
+If you leave your KSQL `select...from customers;` query running in the first window, watch what happens as you change data in the MySQL source.
+====
+
 ==== Re-format the CDC data
 
-We want to extract just the changed record values from the CDC structures, re-partition on the ID column, and set the target topic to have the same number of partitions as the source `ratings` topic:
+We want to extract just the changed record values from the CDC structures, re-partition on the ID column, and set the target topic to have the same number of partitions as the source `ratings` topic (which will make the join we are going to do soon easier):
 [source,sql]
 ----
 create stream customers_flat with (partitions=1) as select 
@@ -198,27 +216,7 @@ We can check our output with
 ----
 describe extended customers;
 ----
-check the "total messages" value and see how it changes over time if you re-issue the same instruction after making some changes in MySQL.
-  
-
-==== Changing data in MySQL
-In a new terminal window, side-by-side with the one you are using already, use `ssh` to connect to the server again (just like we did right at the beginning), and launch the MySQL client
-[source,bash]
-----
-mysql
-----
-You should be able to see your source CUSTOMERS table here, and inspect it's records with `select * from CUSTOMERS` (note the table name is case-sensitive!)
-Try inserting a new record or updating an existing one
-Example: update name of a record to be your own name
-[source,sql]
-----
-> update CUSTOMERS set first_name = 'Jay', last_name='Kreps' where id = 1;
-----
-
-[TIP]
-====
-If you leave your KSQL `select...from customers;` query running in the first window, watch what happens as you change data in the MySQL source.
-====
+check the "total messages" value and see how it changes over time if you re-issue the same instruction after making some more changes in MySQL.
 
 === Identify the unhappy customers
 
@@ -232,7 +230,7 @@ select * from ratings where stars < 3 and channel like 'iOS%' limit 5;
 ----
 (play around with the `where` clause conditions to experiment)
 
-* Now convert this test query into a persistent one (a persistent query is one which starts with `create` and continuously writes its' output into a topic in Kafka:
+* Now convert this test query into a persistent one (a persistent query is one which starts with `create` and continuously writes its' output into a topic in Kafka):
 [source,sql]
 ----
 create stream poor_ratings as select * from ratings where stars < 3 and channel like 'iOS%';
