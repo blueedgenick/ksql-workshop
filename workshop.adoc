@@ -23,11 +23,11 @@ In the following commands, be sure to replace `<username>` with *your own first 
 (for MacOS / Linux users)
 [source,bash]
 ----
-ssh <username>@ec2-54-213-245-5.us-west-2.compute.amazonaws.com
+ssh <username>@ec2-52-14-94-160.us-east-2.compute.amazonaws.com
 ----
 (for Windows users)
 ----
-putty <username>@ec2-54-213-245-5.us-west-2.compute.amazonaws.com
+putty <username>@ec2-52-14-94-160.us-east-2.compute.amazonaws.com
 ----
 You will be prompted for a password, which is `ksqlr0ck$`
 
