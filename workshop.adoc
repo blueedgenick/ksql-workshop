@@ -30,7 +30,8 @@ ssh <username>@ec2-52-88-94-28.us-west-2.compute.amazonaws.com
 putty <username>@ec2-52-88-94-28.us-west-2.compute.amazonaws.com
 ----
 You will be prompted for a password, which is `ksqlr0ck$`
-
+----
+If you cannot connect for some reason, it's possible your workstation is locked down.  You can try our WebSSH instance at `http://ec2-52-88-94-28.us-west-2.compute.amazonaws.com:443/ssh/host/localhost` with the previously mentioned username and password.
 === Control Center
 Test that you can open the Control Center web page by opening up a browser window and navigating to
 `http://controlcenter-<username>.selabs.net:9021`. 
