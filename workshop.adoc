@@ -206,6 +206,9 @@ after->club_status as club_status,
 after->comments as comments 
 from customers_cdc partition by id;
 ----
+
+Run a quick `select` query against your new `customers_flat` stream. Just like we saw with the incoming CDC stream this should be empty until we cause more records to flow to it by making some changes over in MySQL. Let's do that now - go ahead and update some more of the records in the MySQL CUSTOMERS table and see their changes flow, via the CDC stream, into the new `customers_flat` stream.
+
 Register the CUSTOMER data as a KSQL table, sourced from this new, re-partitioned, topic
 [source,sql]
 ----
